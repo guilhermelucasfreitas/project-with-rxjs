@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-import { Observable, throwError, combineLatest, BehaviorSubject, Subject, merge } from 'rxjs';
-import { catchError, tap, map, scan, shareReplay } from 'rxjs/operators';
+import { Observable, throwError, combineLatest, BehaviorSubject, Subject, merge, from } from 'rxjs';
+import { catchError, tap, map, scan, shareReplay, mergeMap, toArray, filter } from 'rxjs/operators';
 
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
@@ -67,7 +67,34 @@ export class ProductService {
   )
   .pipe(
     scan((acc: Product[], value:Product) => [...acc, value])
-  );      
+  );   
+  
+  // selectedProductSuppliers$ = combineLatest([
+  //   //getting product and supplier data, combining arrays
+  //   this.selectedProduct$,
+  //   this.supplierService.suppliers$
+  // ]).pipe(
+  //   map(([selectedProduct, suppliers]) =>
+  //     //using the supplier array and we filter only those suppliers that have products
+  //     suppliers.filter(supplier => selectedProduct.supplierIds.includes(supplier.id))
+  //   )
+  // );
+
+  //product selected
+  selectedProductSuppliers$ = this.selectedProduct$
+    .pipe(
+      //first page, wich user not selected product
+      filter(selectedProduct => Boolean(selectedProduct)),
+      //create observable id supplier, product
+      mergeMap(selectedProduct => 
+        from(selectedProduct.supplierIds)
+        .pipe(
+          //issues request http for each supplier id
+          mergeMap(supplierId => this.http.get<Supplier>(`${this.suppliersUrl}/ ${supplierId}`)),
+          toArray()
+        )
+      )
+    );
 
   constructor(private http: HttpClient,
   private supplierService: SupplierService, private productCategoryService: ProductCategoryService) { }
